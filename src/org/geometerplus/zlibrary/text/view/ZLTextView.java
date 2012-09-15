@@ -1061,22 +1061,34 @@ public abstract class ZLTextView extends ZLTextViewBase {
 		boolean wordOccurred = false;
 		boolean changeStyle = true;
 
-		int x = getLeftMargin() + info.LeftIndent;
+		boolean rtl = paragraphCursor.getRTL();
+		int x = getLeftMargin();
+		if (rtl)
+			x -= info.LeftIndent;
+		else
+			x += info.LeftIndent;
 		final int maxWidth = getTextAreaWidth();
 		switch (getTextStyle().getAlignment()) {
 			case ZLTextAlignmentType.ALIGN_RIGHT:
-				x += maxWidth - getTextStyle().getRightIndent() - info.Width;
+				if (rtl)
+					x += maxWidth - getTextStyle().getRightIndent();
+				else
+					x += maxWidth - getTextStyle().getRightIndent() - info.Width;
 				break;
 			case ZLTextAlignmentType.ALIGN_CENTER:
-				x += (maxWidth - getTextStyle().getRightIndent() - info.Width) / 2;
+				if (rtl)
+					x += (maxWidth - getTextStyle().getRightIndent() + info.Width) / 2;
+				else
+					x += (maxWidth - getTextStyle().getRightIndent() - info.Width) / 2;
 				break;
 			case ZLTextAlignmentType.ALIGN_JUSTIFY:
 				if (!endOfParagraph && (paragraphCursor.getElement(info.EndElementIndex) != ZLTextElement.AfterParagraph)) {
 					fullCorrection = maxWidth - getTextStyle().getRightIndent() - info.Width;
 				}
-				break;
 			case ZLTextAlignmentType.ALIGN_LEFT:
 			case ZLTextAlignmentType.ALIGN_UNDEFINED:
+				if (rtl)
+					x += info.Width;
 				break;
 		}
 
@@ -1088,10 +1100,12 @@ public abstract class ZLTextView extends ZLTextViewBase {
 		for (int wordIndex = info.RealStartElementIndex; wordIndex != endElementIndex; ++wordIndex, charIndex = 0) {
 			final ZLTextElement element = paragraph.getElement(wordIndex);
 			final int width = getElementWidth(element, charIndex);
+			if (rtl) x -= width;
 			if (element == ZLTextElement.HSpace) {
 				if (wordOccurred && (spaceCounter > 0)) {
 					final int correction = fullCorrection / spaceCounter;
 					final int spaceLength = context.getSpaceWidth() + correction;
+					if (rtl) x -= spaceLength;
 					if (getTextStyle().isUnderline()) {
 						spaceElement = new ZLTextElementArea(
 							paragraphIndex, wordIndex, 0,
@@ -1104,7 +1118,7 @@ public abstract class ZLTextView extends ZLTextViewBase {
 					} else {
 						spaceElement = null;
 					}
-					x += spaceLength;
+					if (!rtl) x += spaceLength;
 					fullCorrection -= correction;
 					wordOccurred = false;
 					--spaceCounter;
@@ -1131,7 +1145,7 @@ public abstract class ZLTextView extends ZLTextViewBase {
 				applyStyleChangeElement(element);
 				changeStyle = true;
 			}
-			x += width;
+			if (!rtl) x += width;
 		}
 		if (!endOfParagraph) {
 			final int len = info.EndCharIndex;
@@ -1142,6 +1156,7 @@ public abstract class ZLTextView extends ZLTextViewBase {
 				final int width = getWordWidth(word, 0, len, addHyphenationSign);
 				final int height = getElementHeight(word);
 				final int descent = context.getDescent();
+				if (rtl) x -= width;
 				page.TextElementMap.add(
 					new ZLTextElementArea(
 						paragraphIndex, wordIndex, 0,
