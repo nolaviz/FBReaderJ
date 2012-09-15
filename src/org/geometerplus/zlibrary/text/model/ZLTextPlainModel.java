@@ -252,6 +252,10 @@ public class ZLTextPlainModel implements ZLTextModel, ZLTextStyleEntry.Feature {
 		return myLanguage;
 	}
 
+	public final boolean getRTL() {
+		return (myLanguage.equals("he") || myLanguage.equals("ar"));
+	}
+
 	public final ZLTextMark getFirstMark() {
 		return ((myMarks == null) || myMarks.isEmpty()) ? null : myMarks.get(0);
 	}

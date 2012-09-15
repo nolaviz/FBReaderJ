@@ -194,10 +194,12 @@ public final class ZLTextParagraphCursor {
 	public final int Index;
 	public final ZLTextModel Model;
 	private final ArrayList<ZLTextElement> myElements = new ArrayList<ZLTextElement>();
+	private final boolean RTL;
 
 	private ZLTextParagraphCursor(ZLTextModel model, int index) {
 		Model = model;
 		Index = Math.min(index, Model.getParagraphsNumber() - 1);
+		RTL = Model.getRTL();
 		fill();
 	}
 
@@ -263,6 +265,10 @@ public final class ZLTextParagraphCursor {
 
 	ZLTextParagraph getParagraph() {
 		return Model.getParagraph(Index);
+	}
+
+	public boolean getRTL() {
+		return RTL;
 	}
 
 	@Override
