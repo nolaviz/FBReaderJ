@@ -17,16 +17,16 @@
  * 02110-1301, USA.
  */
 
-#include <iostream>
-
 #include <ZLFile.h>
 #include <ZLInputStream.h>
 #include <ZLLogger.h>
 #include <ZLImage.h>
+#include <ZLEncodingConverter.h>
 
 #include "DocPlugin.h"
 #include "DocMetaInfoReader.h"
 #include "DocBookReader.h"
+#include "DocStreams.h"
 #include "../../bookmodel/BookModel.h"
 #include "../../library/Book.h"
 
@@ -41,7 +41,7 @@ bool DocPlugin::providesMetaInfo() const {
 }
 
 const std::string DocPlugin::supportedFileType() const {
-	return "doc";
+	return "MS Word document";
 }
 
 bool DocPlugin::acceptsFile(const ZLFile &file) const {
@@ -49,7 +49,17 @@ bool DocPlugin::acceptsFile(const ZLFile &file) const {
 }
 
 bool DocPlugin::readMetaInfo(Book &book) const {
-	return DocMetaInfoReader(book).readMetaInfo();
+	if (!DocMetaInfoReader(book).readMetaInfo()) {
+		return false;
+	}
+
+	shared_ptr<ZLInputStream> stream = new DocCharStream(book.file(), 50000);
+	if (!detectEncodingAndLanguage(book, *stream)) {
+		stream = new DocAnsiStream(book.file(), 50000);
+		detectLanguage(book, *stream, ZLEncodingConverter::UTF8, true);
+	}
+
+	return true;
 }
 
 bool DocPlugin::readLanguageAndEncoding(Book &/*book*/) const {

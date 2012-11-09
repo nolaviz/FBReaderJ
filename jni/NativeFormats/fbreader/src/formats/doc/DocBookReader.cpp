@@ -17,7 +17,6 @@
  * 02110-1301, USA.
  */
 
-#include <iostream>
 #include <vector>
 #include <string>
 
@@ -35,48 +34,23 @@
 #include "OleMainStream.h"
 
 DocBookReader::DocBookReader(BookModel &model, const std::string &encoding) :
-	OleStreamReader(encoding),
 	myModelReader(model),
-	myPictureCounter(0) {
+	myPictureCounter(0),
+	myEncoding(encoding) {
 	myReadState = READ_TEXT;
 }
 
 bool DocBookReader::readBook() {
 	const ZLFile &file = myModelReader.model().book()->file();
 	shared_ptr<ZLInputStream> stream = file.inputStream();
-	if (stream.isNull()) {
-		return false;
-	}
-	return readDocument(stream, file.size());
-}
-
-bool DocBookReader::readDocument(shared_ptr<ZLInputStream> inputStream, size_t streamSize) {
-	static const std::string WORD_DOCUMENT = "WordDocument";
-
-	if (inputStream.isNull() || !inputStream->open()) {
+	if (stream.isNull() || !stream->open()) {
 		return false;
 	}
 	myModelReader.setMainTextModel();
 	myModelReader.pushKind(REGULAR);
 	myModelReader.beginParagraph();
 
-	shared_ptr<OleStorage> storage = new OleStorage;
-
-	if (!storage->init(inputStream, streamSize)) {
-		ZLLogger::Instance().println("DocBookReader", "Broken OLE file!");
-		return false;
-	}
-
-
-	OleEntry wordDocumentEntry;
-	bool result = storage->getEntryByName(WORD_DOCUMENT, wordDocumentEntry);
-	if (!result) {
-		return false;
-	}
-
-	OleMainStream oleStream(storage, wordDocumentEntry, inputStream);
-	result = readStream(oleStream);
-	if (!result) {
+	if (!readDocument(stream)) {
 		return false;
 	}
 
@@ -112,8 +86,8 @@ void DocBookReader::handleHardLinebreak() {
 		myModelReader.endParagraph();
 	}
 	myModelReader.beginParagraph();
-	if (!myCurStyleEntry.isNull()) {
-		myModelReader.addStyleEntry(*myCurStyleEntry);
+	if (!myCurrentStyleEntry.isNull()) {
+		myModelReader.addStyleEntry(*myCurrentStyleEntry);
 	}
 	for (size_t i = 0; i < myKindStack.size(); ++i) {
 		myModelReader.addControl(myKindStack.at(i), true);
@@ -125,14 +99,14 @@ void DocBookReader::handleParagraphEnd() {
 		myModelReader.endParagraph();
 	}
 	myModelReader.beginParagraph();
-	myCurStyleEntry = 0;
+	myCurrentStyleEntry = 0;
 }
 
 void DocBookReader::handlePageBreak() {
 	if (myModelReader.paragraphIsOpen()) {
 		myModelReader.endParagraph();
 	}
-	myCurStyleEntry = 0;
+	myCurrentStyleEntry = 0;
 	myModelReader.insertEndOfSectionParagraph();
 	myModelReader.beginParagraph();
 }
@@ -239,8 +213,8 @@ void DocBookReader::handleImage(const ZLFileImage::Blocks &blocks) {
 }
 
 void DocBookReader::handleOtherControlChar(ZLUnicodeUtil::Ucs2Char ucs2char) {
-	if (ucs2char == WORD_SHORT_DEFIS) {
-		handleChar(SHORT_DEFIS);
+	if (ucs2char == WORD_MINUS) {
+		handleChar(MINUS);
 	} else if (ucs2char == WORD_SOFT_HYPHEN) {
 		//skip
 	} else if (ucs2char == WORD_HORIZONTAL_TAB) {
@@ -259,10 +233,10 @@ void DocBookReader::handleFontStyle(unsigned int fontStyle) {
 		myModelReader.addControl(myKindStack.back(), false);
 		myKindStack.pop_back();
 	}
-	if (fontStyle & OleMainStream::CharInfo::BOLD) {
+	if (fontStyle & OleMainStream::CharInfo::FONT_BOLD) {
 		myKindStack.push_back(BOLD);
 	}
-	if (fontStyle & OleMainStream::CharInfo::ITALIC) {
+	if (fontStyle & OleMainStream::CharInfo::FONT_ITALIC) {
 		myKindStack.push_back(ITALIC);
 	}
 	for (size_t i = 0; i < myKindStack.size(); ++i) {
@@ -271,44 +245,59 @@ void DocBookReader::handleFontStyle(unsigned int fontStyle) {
 }
 
 void DocBookReader::handleParagraphStyle(const OleMainStream::Style &styleInfo) {
-	if (styleInfo.hasPageBreakBefore) {
+	if (styleInfo.HasPageBreakBefore) {
 		handlePageBreak();
 	}
-	shared_ptr<ZLTextStyleEntry> entry = new ZLTextStyleEntry();
+	shared_ptr<ZLTextStyleEntry> entry = new ZLTextStyleEntry(ZLTextStyleEntry::STYLE_OTHER_ENTRY);
 
-	if (styleInfo.alignment == OleMainStream::Style::LEFT) {
-		entry->setAlignmentType(ALIGN_JUSTIFY); //force justify align
-	} else if (styleInfo.alignment == OleMainStream::Style::CENTER) {
-		entry->setAlignmentType(ALIGN_CENTER);
-	} else if (styleInfo.alignment == OleMainStream::Style::RIGHT) {
-		entry->setAlignmentType(ALIGN_RIGHT);
-	} else if (styleInfo.alignment == OleMainStream::Style::JUSTIFY) {
-		entry->setAlignmentType(ALIGN_JUSTIFY);
+	switch (styleInfo.Alignment) {
+		default: // in that case, use default alignment type
+			break;
+		case OleMainStream::Style::ALIGNMENT_LEFT:
+			entry->setAlignmentType(ALIGN_LEFT);
+			break;
+		case OleMainStream::Style::ALIGNMENT_RIGHT:
+			entry->setAlignmentType(ALIGN_RIGHT);
+			break;
+		case OleMainStream::Style::ALIGNMENT_CENTER:
+			entry->setAlignmentType(ALIGN_CENTER);
+			break;
+		case OleMainStream::Style::ALIGNMENT_JUSTIFY:
+			entry->setAlignmentType(ALIGN_JUSTIFY);
+			break;
 	}
 
 	//TODO in case, where style is heading, but size is small it works wrong
-	ZLTextStyleEntry::SizeUnit unit = ZLTextStyleEntry::SIZE_UNIT_PERCENT;
-	if (styleInfo.istd == OleMainStream::H1) {
-		entry->setLength(ZLTextStyleEntry::LENGTH_FONT_SIZE, 140, unit);
-	} else if (styleInfo.istd == OleMainStream::H2) {
-		entry->setLength(ZLTextStyleEntry::LENGTH_FONT_SIZE, 120, unit);
-	} else if (styleInfo.istd == OleMainStream::H3) {
-		entry->setLength(ZLTextStyleEntry::LENGTH_FONT_SIZE, 110, unit);
+	const ZLTextStyleEntry::SizeUnit unit = ZLTextStyleEntry::SIZE_UNIT_PERCENT;
+	switch (styleInfo.StyleIdCurrent) {
+		default:
+			break;
+		case OleMainStream::Style::STYLE_H1:
+			entry->setLength(ZLTextStyleEntry::LENGTH_FONT_SIZE, 140, unit);
+			break;
+		case OleMainStream::Style::STYLE_H2:
+			entry->setLength(ZLTextStyleEntry::LENGTH_FONT_SIZE, 120, unit);
+			break;
+		case OleMainStream::Style::STYLE_H3:
+			entry->setLength(ZLTextStyleEntry::LENGTH_FONT_SIZE, 110, unit);
+			break;
 	}
+	myCurrentStyleEntry = entry;
+	myModelReader.addStyleEntry(*myCurrentStyleEntry);
 
-	myCurStyleEntry = entry;
-	myModelReader.addStyleEntry(*myCurStyleEntry);
-
-	//we should have the same font style, as for the previous paragraph, if it has the same istd
-	if (myCurStyleInfo.istd != OleMainStream::ISTD_INVALID && myCurStyleInfo.istd == styleInfo.istd) {
+	// we should have the same font style, as for the previous paragraph,
+	// if it has the same StyleIdCurrent
+	if (myCurrentStyleInfo.StyleIdCurrent != OleMainStream::Style::STYLE_INVALID &&
+		  myCurrentStyleInfo.StyleIdCurrent == styleInfo.StyleIdCurrent) {
 		for (size_t i = 0; i < myKindStack.size(); ++i) {
 			myModelReader.addControl(myKindStack.at(i), true);
 		}
 	} else {
 		myKindStack.clear();
-		handleFontStyle(styleInfo.charInfo.fontStyle); //fill by the fontstyle, that was got from Stylesheet
+		// fill by the fontstyle, that was got from Stylesheet
+		handleFontStyle(styleInfo.CurrentCharInfo.FontStyle);
 	}
-	myCurStyleInfo = styleInfo;
+	myCurrentStyleInfo = styleInfo;
 }
 
 void DocBookReader::handleBookmark(const std::string &name) {
@@ -367,3 +356,24 @@ std::string DocBookReader::parseLink(ZLUnicodeUtil::Ucs2String s, bool urlencode
 	return utf8String;
 }
 
+void DocBookReader::footnoteHandler() {
+	handlePageBreak();
+}
+
+void DocBookReader::dataHandler(const char *buffer, size_t len) {
+	if (myConverter.isNull()) {
+		// lazy converter initialization
+		const ZLEncodingCollection &collection = ZLEncodingCollection::Instance();
+		myConverter = collection.converter(myEncoding);
+		if (myConverter.isNull()) {
+			myConverter = collection.defaultConverter();
+		}
+	}
+	std::string utf8String;
+	myConverter->convert(utf8String, buffer, buffer + len);
+	ZLUnicodeUtil::utf8ToUcs2(myBuffer, utf8String);
+}
+
+void DocBookReader::ansiSymbolHandler(ZLUnicodeUtil::Ucs2Char symbol) {
+	myBuffer.push_back(symbol);
+}

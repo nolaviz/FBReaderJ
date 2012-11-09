@@ -507,6 +507,17 @@
 				</node>
 			</node>
 		</node>
+		<node name="css" value="CSS" toBeTranslated="true">
+			<node name="summary" value="Apply/ignore values defined in CSS" toBeTranslated="true"/>
+			<node name="fontSize" value="Font size" toBeTranslated="true">
+				<node name="summaryOn" value="Apply font size defined in CSS" toBeTranslated="true"/>
+				<node name="summaryOff" value="Ignore font size defined in CSS" toBeTranslated="true"/>
+			</node>
+			<node name="textAlignment" value="Text alignment" toBeTranslated="true">
+				<node name="summaryOn" value="Apply text alignment defined in CSS" toBeTranslated="true"/>
+				<node name="summaryOff" value="Ignore text alignment defined in CSS" toBeTranslated="true"/>
+			</node>
+		</node>
 		<node name="colors" value="Renkler &amp; duvarkağıtları">
 			<node name="summary" value="Renk ayarları"/>
 			<node name="background" value="Arkaplan">
@@ -625,6 +636,11 @@
 				<node name="doNothing" value="Uzun dokunma eylemsiz"/>
 				<node name="selectImage" value="Uzun dokunma resmi seçsin"/>
 				<node name="openImageView" value="Uzun dokunma resmi açsın"/>
+			</node>
+			<node name="fitImagesToScreen" value="Fit images to screen" toBeTranslated="true">
+				<node name="none" value="None" toBeTranslated="true"/>
+				<node name="covers" value="Covers only" toBeTranslated="true"/>
+				<node name="all" value="All" toBeTranslated="true"/>
 			</node>
 		</node>
 		<node name="cancelMenu" value="İptal menüsü">

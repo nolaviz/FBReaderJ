@@ -497,6 +497,17 @@
 				</node>
 			</node>
 		</node>
+		<node name="css" value="CSS" toBeTranslated="true">
+			<node name="summary" value="Apply/ignore values defined in CSS" toBeTranslated="true"/>
+			<node name="fontSize" value="Font size" toBeTranslated="true">
+				<node name="summaryOn" value="Apply font size defined in CSS" toBeTranslated="true"/>
+				<node name="summaryOff" value="Ignore font size defined in CSS" toBeTranslated="true"/>
+			</node>
+			<node name="textAlignment" value="Text alignment" toBeTranslated="true">
+				<node name="summaryOn" value="Apply text alignment defined in CSS" toBeTranslated="true"/>
+				<node name="summaryOff" value="Ignore text alignment defined in CSS" toBeTranslated="true"/>
+			</node>
+		</node>
 		<node name="colors" value="Kleuren">
 			<node name="summary" value="Kleurinstellingen"/>
 			<node name="background" value="Achtergrond">
@@ -615,6 +626,11 @@
 				<node name="doNothing" value="Long tapping does nothing" toBeTranslated="true"/>
 				<node name="selectImage" value="Long tapping selects the image" toBeTranslated="true"/>
 				<node name="openImageView" value="Long tapping opens image view" toBeTranslated="true"/>
+			</node>
+			<node name="fitImagesToScreen" value="Fit images to screen" toBeTranslated="true">
+				<node name="none" value="None" toBeTranslated="true"/>
+				<node name="covers" value="Covers only" toBeTranslated="true"/>
+				<node name="all" value="All" toBeTranslated="true"/>
 			</node>
 		</node>
 		<node name="cancelMenu" value="Afsluitmenu">
